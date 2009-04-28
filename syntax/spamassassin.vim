@@ -2,8 +2,8 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-04-23
-" Version: 1.4
+" Latest Revision: 2009-04-27
+" Version: 1.5
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -15,7 +15,8 @@
 "     augroup END
 
 " This contains EVERYTHING in the Mail::SpamAssassin:Conf man page,
-" plus a few plugin configuration options that I encounter regularly.
+" including all plugins that ship with SpamAssassin and even a few others.
+" Only a few eval:foobar() functions are supported (there are too many).
 
 if exists("b:current_syntax")
   finish
@@ -26,10 +27,39 @@ endif
 " This results in lots of cancelling at the bottom of this file (incomplete...).
 runtime! syntax/perl.vim
 
+" cancel problematic bits inherited from perl's highlighting
+" TODO:  redefine numbers to have better edges, LOTS more...
+syntax clear perlRepeat perlOperator perlConditional perlStatementFiles 
+syntax clear perlStatementProc perlStatementList perlStatementControl 
+syntax clear perlStatementInclude perlVarPlain perlVarPlain2 perlVarBlock 
+syntax clear perlFunctionName perlShellCommand perlHereDoc perlAutoload 
+syntax clear perlUntilEOFSQ perlUntilEOFDQ perlUntilEmptySQ perlUntilEmptyDQ 
+syntax clear perlSubstitutionSQ perlStringUnexpanded
+
+syn match perlComment  "#.*" contains=perlTodo,saURL,@Spell
+
+" clear and re-implement perlMatch
+syntax clear perlMatch
+
+" Simple version of searches and matches
+" caters for m//, m##, m{} and m[] (and the !/ variant)
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]/+ end=+\v/[cgimosx]*\ze(\s|$)+ contains=@perlInterpSlash oneline
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]#+ end=+\v#[cgimosx]*\ze(\s|$)+ contains=@perlInterpMatch oneline
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]{+ end=+\v}[cgimosx]*\ze(\s|$)+ contains=@perlInterpMatch oneline
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]\[+ end=+\v\][cgimosx]*\ze(\s|$)+ contains=@perlInterpMatch oneline
+
+" A special case for m!!x which allows for comments and extra whitespace
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]!+ end=+\v![cgimosx]*\ze(\s|$)+ contains=@perlInterpSlash,perlComment oneline
+
+" Below some hacks to recognise the // variant.
+syn region perlMatch	matchgroup=perlMatchStartEnd start=+[!=]\~\s*/+lc=2 start=+[(~]/+lc=1 start=+\.\./+lc=2 start=+\s/[^= \t0-9$@%]+lc=1,me=e-1,rs=e-1 start=+^/+ skip=+\\/+ end=+\v/[cgimosx]*\ze(\s|$)+ contains=@perlInterpSlash oneline
+
+
+
 syn match saRuleLine "\v^(\s*lang\s+\S{2,9}\s+)?\s*\w+" contains=@saRule,saTR
 syn match saPreProLine "\v^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\w+$" contains=saPreProc
 
-syn cluster saRule contains=saLists,saHeaderType,saTemplateTags,saNet,saBayes,saMisc,saPrivileged,saType,saDescribe,saReport,saBodyMatch,saAdmin,saAdminBayes,saAdminScores,saPreProc,@saPlugins,saHasPaths,saIPaddress,saKeyword
+syn cluster saRule contains=saLists,saHeaderType,saTemplateTags,saNet,saBayes,saMisc,saPrivileged,saType,saDescribe,saReport,saBodyMatch,saAdmin,saAdminBayes,saAdminScores,saPreProc,@saPlugins,saIPaddress,saKeyword
 
 syn keyword saLists blacklist_from contained
 syn keyword saLists unblacklist_from blacklist_to whitelist_from contained
@@ -60,7 +90,7 @@ syn keyword saTemplateTags _RBL_ _LANGUAGES_ _PREVIEW_ _REPORT_ _SUMMARY_
 syn keyword saTemplateTags _CONTACTADDRESS_ _RELAYCOUNTRY_
 syn keyword saSQLTags _TABLE_ _USERNAME_ _MAILBOX_ _DOMAIN_
 
-" more added by the TextCat plugin below
+" more added by the TextCat plugin below, see also saTR for the 'lang' setting
 syn keyword saLang ok_locales normalize_charset contained
 syn match saLocaleLine "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*ok_locales\s\+\)\@<=\S.\+" contains=saLocaleKeys,perlComment
 syn keyword saLocaleKeys en ja ko ru th zh contained
@@ -95,23 +125,22 @@ syn keyword saType priority test tflags uri mimeheader uri_detail contained
 syn keyword saTR lang contained
 syn match saTR "\v\s\S{2,9}\s+" contained contains=saLangKeys
 
-" TODO: remove this workaround for filename=regex with real solution ... done?
-"syn match saHasPaths "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\(auto_whitelist_path\|bayes_path\|dcc_home\|dcc_path\|pyzor_options\|razor_config\|hashcash_doublespend_path\)\s\+\)\@<=\S.\+"
-"syn match saHasIPs "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\(trusted_networks\|internal_networks\|msa_networks\)\s\+\)\@<=\S.\+$" contains=saIPaddress
-
-syn match saIPaddress "\v<(([012]?\d?\d)\.){1,3}([012]?\d?\d(\/[0123]\d)?)?>"
-syn match saURL "\v(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" "contained
-syn match saFile "\v(\s|:)/(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+"
-syn match saFile "\v(\s|:)/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/[^/ 	]*[^msixpgc]"
+syn match saIPaddress "\v\s\zs(([012]?\d?\d)\.){1,3}([012]?\d?\d(\/[0123]\d)?)?\ze(\s|$)"
+syn match saURL "\v(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSpell transparent "contained
+"syn match saPath "\v(\s|:)/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/([msixpgc]+\>)\@!" transparent
+" previously also needed this workaround:
+"syn match saPath "\v(\s|:)\zs/(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+" transparent
 syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}([^a-z*]|$)\@=" contains=saEmailGlob
 syn match saEmailGlob "\*" contained
 
-syn match perlComment  "#.*" contains=perlTodo,saURL,saFile,@Spell
 syn match saReport "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\(unsafe_\)\?report\s\+\)\@<=\S.\+" contains=perlComment,@Spell
 
-" rule descriptions recommended max length is 50, but spellcheck the whole thing
-syn match saDescribe "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*describe\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\{1,50}" contains=perlComment,saURL,@Spell nextgroup=saDescribeOverflow
-syn match saDescribeOverflow ".*$" contained contains=saURL,@Spell
+" rule descriptions recommended max length is 50
+syn match saDescribe "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*describe\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\{1,50}" contains=perlComment,saURL,@Spell nextgroup=saDescribeOverflow1 keepend
+" interrupt saURL color, but don't spellcheck the next part
+syn region saDescribeOverflow1 start=+.+ end="[^-A-Za-z0-9_.:@/#%,;~?+=&]" oneline contained contains=@NoSpell nextgroup=saDescribeOverflow2
+" spellchecking may resume
+syn match saDescribeOverflow2 ".*$" contained contains=@Spell,perlComment
 
 " body rules have regular expressions w/out a leading =~
 syn region saBodyMatch matchgroup=perlMatchStartEnd start=:\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\(raw\)\?body\s\+[A-Z_0-9]\+\s\+\)\@<=/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash
@@ -147,8 +176,8 @@ syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist
 """""""""""""
 " PLUGINS (only those that ship with Spamassassin, small plugins are above)
 
-syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saReplaceMatch
-syn cluster saPluginKeywords contains=saShortCircuitKeys,saVerifyKeys,saDNSBLKeys,saAVKeys,saLangKeys,saLocaleKeys,saAccessDB
+syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saReplaceMatch,saPluginMisc
+syn cluster saPluginKeywords contains=saShortCircuitKeys,saVerifyKeys,saDNSBLKeys,saAVKeys,saLangKeys,saLocaleKeys
 
 " DCC, Pyzor, Razor2, Hashcash
 syn keyword saHashChecks use_dcc dcc_body_max dcc_fuz1_max contained
@@ -161,14 +190,15 @@ syn keyword saHashChecks use_hashcash hashcash_accept contained
 syn keyword saHashChecks hashcash_doublespend_path contained
 syn keyword saHashChecks hashcash_doublespend_file_mode contained
 
-" SPF, DKIM
+" SPF, DKIM, DomainKeys
 syn keyword saVerify whitelist_from_spf def_whitelist_from_spf contained
 syn keyword saVerify spf_timeout do_not_use_mail_spf contained
 syn keyword saVerify do_not_use_mail_spq_query contained
 syn keyword saVerify ignore_received_spf_header contained
 syn keyword saVerify use_newest_received_spf_header contained
 syn keyword saVerify whitelist_from_dkim def_whitelist_from_dkim contained
-syn keyword saVerify dkim_timeout contained
+syn keyword saVerify dkim_timeout whitelist_from_dk contained
+syn keyword saVerify def_whitelist_from_dk domainkeys_timeout contained
 syn keyword saVerifyKeys check_dkim_valid check_dkim_valid_author_sig
 syn keyword saVerifyKeys check_dkim_verified
 syn keyword saTemplateTags _DKIMIDENTIFY_ _DKIMDOMAIN_
@@ -196,7 +226,7 @@ syn keyword saTemplateTags _SC_ _SCRULE_ _SCTYPE_
 " AntiVirus
 syn keyword saAVKeys check_microsoft_executable check_suspect_name
 
-" TextCat
+" TextCat (see also saTR and locale stuff in the saLang pieces above)
 syn keyword saLang ok_languages inactive_languages contained
 syn keyword saLang textcat_max_languages textcat_optimal_ngrams contained
 syn keyword saLang textcat_max_ngrams textcat_acceptable_score contained
@@ -217,10 +247,14 @@ syn region saReplaceMatch matchgroup=perlMatchStartEnd start=:\%(^\(\s*lang\s\+\
 syn match saURIDetail "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri_detail\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saURIDetailKeys,perlMatch
 syn keyword saURIDetailKeys raw type cleaned text domain contained
 
-" AccessDB
-syn keyword saAccessDB check_access_database
+" ASN
+syn keyword saPluginMisc asn_lookup
+syn keyword saTemplateTags _ASN_ _ASNCIDR_ _ASNCIDRTAG_ _ASNDATA_ _ASNTAG_
+syn keyword saTemplateTags _COMBINEDASN_ _COMBINEDASNCIDR_ _MYASN_ _MYASNCIDR_
 
-" Missing (disabled in default SA install): ASN, DomainKeys, anything 3rd-party
+" Some 3rd-party plugins (not shipped with SA) ... only quickies here!
+syn keyword saPluginMisc uricountry sagrey_header_field contained
+
 " TODO: migrate plugins enabled by default into their own section
 
 """""""""""""
@@ -235,24 +269,6 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   else
     command -nargs=+ HiLink hi def link <args>
   endif
-
-  " cancel problematic bits inherited from perl's highlighting
-  " TODO:  single-quotes, numbers in inappropriate places, LOTS more...
-  HiLink saNotDesc		NONE
-  HiLink perlRepeat		NONE
-  HiLink perlOperator		NONE
-  HiLink perlConditional	NONE
-  HiLink perlStatementFiles	NONE
-  HiLink perlStatementProc	NONE
-  HiLink perlStatementList	NONE
-  HiLink perlStatementControl	NONE
-  HiLink perlStatementInclude	NONE
-  HiLink perlVarPlain		NONE
-  HiLink perlVarPlain2		NONE
-  HiLink perlVarBlock		NONE
-  HiLink perlFunctionName	NONE
-  HiLink perlUntilEOFSQ		NONE
-  HiLink perlUntilEmptySQ	NONE
 
   HiLink saLists 		Statement
   HiLink saHeaderType 		Statement
@@ -271,7 +287,6 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saAdminBayes 		Statement
   HiLink saAdminScores 		Statement
   HiLink saPreProc 		StorageClass
-  HiLink saHasPaths		String
   HiLink saIPaddress		Float
   HiLink saBodyMatch		perlMatch
   HiLink saFunction		Function
@@ -286,6 +301,7 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saAWL			saPlugins
   HiLink saShortCircuit 	saPlugins
   HiLink saLang 		saPlugins
+  HiLink saPluginMisc		saPlugins
   HiLink saReplace		saPlugins
   HiLink saReplaceMatch		saBodyMatch
 
@@ -294,12 +310,11 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saVerifyKeys		saPluginKeywords
   HiLink saDNSBLKeys		saPluginKeywords
   HiLink saAVKeys		saPluginKeywords
-  HiLink saAccessDB		saPluginKeywords
   HiLink saLangKeys		saPluginKeywords
   HiLink saLocaleKeys		saLangKeys
 
-  HiLink saURL			StorageClass
-  HiLink saFile			String
+  "HiLink saURL			StorageClass
+  "HiLink saPath 		String
   HiLink saEmail		StorageClass
   HiLink saEmailGlob		Operator
 
