@@ -2,8 +2,8 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-04-30
-" Version: 1.6
+" Latest Revision: 2009-05-01
+" Version: 1.7
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -29,13 +29,18 @@ runtime! syntax/perl.vim
 
 " cancel problematic bits inherited from perl's highlighting
 " TODO:  redefine numbers to have better edges, LOTS more...
-syntax clear perlRepeat perlOperator perlConditional perlStatementFiles 
-syntax clear perlStatementProc perlStatementList perlStatementControl 
-syntax clear perlStatementInclude perlVarPlain perlVarPlain2 perlVarBlock 
-syntax clear perlFunctionName perlShellCommand perlHereDoc perlAutoload 
-syntax clear perlUntilEOFSQ perlUntilEOFDQ perlUntilEmptySQ perlUntilEmptyDQ 
-syntax clear perlSubstitutionSQ perlStringUnexpanded perlStatementHash
-syntax clear perlStatementFlow perlStatementFiledesc
+if version >= 600
+  syntax clear perlRepeat perlOperator perlConditional perlStatementFiles 
+  syntax clear perlStatementProc perlStatementList perlStatementControl 
+  syntax clear perlStatementInclude perlVarPlain perlStatementFiledesc
+  syntax clear perlFunctionName perlShellCommand perlHereDoc perlStatementFlow
+  syntax clear perlUntilEOFSQ perlUntilEOFDQ perlUntilEmptySQ perlUntilEmptyDQ 
+  syntax clear perlSubstitutionSQ perlStringUnexpanded perlStatementHash
+endif
+if version >= 700
+  syntax clear perlVarPlain2 perlVarBlock perlAutoload
+endif
+
 
 syn match perlComment  "#.*" contains=perlTodo,saURL,@Spell
 
