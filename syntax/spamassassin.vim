@@ -2,8 +2,8 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-04-27
-" Version: 1.5
+" Latest Revision: 2009-04-30
+" Version: 1.6
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -34,7 +34,8 @@ syntax clear perlStatementProc perlStatementList perlStatementControl
 syntax clear perlStatementInclude perlVarPlain perlVarPlain2 perlVarBlock 
 syntax clear perlFunctionName perlShellCommand perlHereDoc perlAutoload 
 syntax clear perlUntilEOFSQ perlUntilEOFDQ perlUntilEmptySQ perlUntilEmptyDQ 
-syntax clear perlSubstitutionSQ perlStringUnexpanded
+syntax clear perlSubstitutionSQ perlStringUnexpanded perlStatementHash
+syntax clear perlStatementFlow perlStatementFiledesc
 
 syn match perlComment  "#.*" contains=perlTodo,saURL,@Spell
 
@@ -73,21 +74,31 @@ syn keyword saLists whitelist_subject blacklist_subject contained
 syn keyword saHeaderType rewrite_header add_header remove_header contained
 syn keyword saHeaderType clear_headers report_safe contained
 
-" BUG: this next line (and using the saTemplateTags as all contained fails...)
-"syn match saHeader "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\(remove_header|add_header\|rewrite_subject\|subject_tag\)\s\+\)\@<=\S.\+" contains=saTemplateTags,saKeyword
-syn match saTemplateTags "\v_(SCORE|(SP|H)AMMYTOKENS)\([0-9]+\)_"
-syn match saTemplateTags "\v_(STARS|(SUB)?TESTS(SCORES)?|HEADER)\(..*\)_"
-syn keyword saTemplateTags _YESNOCAPS_ _YESNO_ _REQD_ _VERSION_ _SUBVERSION_
-syn keyword saTemplateTags _SCORE_ _HOSTNAME_ _REMOTEHOSTNAME_ _REMOTEHOSTADDR_
-syn keyword saTemplateTags _BAYES_ _TOKENSUMMARY_ _BAYESTC_ _BAYESTCLEARNED_
-syn keyword saTemplateTags _BAYESTCSPAMMY_ _BAYESTCHAMMY_ _HAMMYTOKENS_ 
-syn keyword saTemplateTags _SPAMMYTOKENS_ _DATE_ _STARS_ _RELAYSTRUSTED_
-syn keyword saTemplateTags _RELAYSUNTRUSTED_ _RELAYSINTERNAL_ _RELAYSEXTERNAL_
-syn keyword saTemplateTags _LASTEXTERNALIP_ _LASTEXTERNALRDNS_
-syn keyword saTemplateTags _LASTEXTERNALHELO_ _AUTOLEARN_ _AUTOLEARNSCORE_
-syn keyword saTemplateTags _TESTS_ _TESTSCORES_ _SUBTESTS_ _DCCB_ _DCCR_ _PYZOR_
-syn keyword saTemplateTags _RBL_ _LANGUAGES_ _PREVIEW_ _REPORT_ _SUMMARY_
-syn keyword saTemplateTags _CONTACTADDRESS_ _RELAYCOUNTRY_
+syn match saHeader "\%(\<rewrite_header\s\+\)\@<=\S\+" contains=saHeaderType nextgroup=saHeaderString
+syn match saHeader "\%(\<add_header\s\+\)\@<=\S\+\s\+\S\+\s\+" contains=saHeaderClause nextgroup=saHeaderString
+syn match saHeader "\%(\<remove_header\s\+\)\@<=" nextgroup=saHeaderClause
+syn keyword saHeaderClause spam ham all contained
+syn keyword saHeaderClause Spam Ham All ALL contained
+syn keyword saHeaderType subject from to contained
+syn keyword saHeaderType Subject From To contained
+syn match saHeaderString ".*$" contained contains=saTemplateTags
+syn match saTemplateTags "\v_(SCORE|(SP|H)AMMYTOKENS)\([0-9]+\)_" contained
+syn match saTemplateTags "\v_(STARS|(SUB)?TESTS(SCORES)?|HEADER)\(..*\)_" contained
+syn keyword saTemplateTags _YESNOCAPS_ _YESNO_ _REQD_ _VERSION_ contained
+syn keyword saTemplateTags _SUBVERSION_ _SCORE_ _HOSTNAME_ contained
+syn keyword saTemplateTags _REMOTEHOSTNAME_ _REMOTEHOSTADDR_ contained
+syn keyword saTemplateTags _BAYES_ _TOKENSUMMARY_ _BAYESTC_ contained
+syn keyword saTemplateTags _BAYESTCLEARNED_ _BAYESTCSPAMMY_ contained
+syn keyword saTemplateTags _BAYESTCHAMMY_ _HAMMYTOKENS_ _SPAMMYTOKENS_ contained
+syn keyword saTemplateTags _DATE_ _STARS_ _RELAYSTRUSTED_ contained
+syn keyword saTemplateTags _RELAYSUNTRUSTED_ _RELAYSINTERNAL_ contained
+syn keyword saTemplateTags _RELAYSEXTERNAL_ _LASTEXTERNALIP_ contained
+syn keyword saTemplateTags _LASTEXTERNALRDNS_ _LASTEXTERNALHELO_ contained
+syn keyword saTemplateTags _AUTOLEARN_ _AUTOLEARNSCORE_ _TESTS_ contained
+syn keyword saTemplateTags _TESTSCORES_ _SUBTESTS_ _DCCB_ _DCCR_ contained
+syn keyword saTemplateTags _PYZOR_ _RBL_ _LANGUAGES_ _PREVIEW_ contained
+syn keyword saTemplateTags _REPORT_ _SUMMARY_ _CONTACTADDRESS_ contained
+syn keyword saTemplateTags _RELAYCOUNTRY_ contained
 syn keyword saSQLTags _TABLE_ _USERNAME_ _MAILBOX_ _DOMAIN_
 
 " more added by the TextCat plugin below, see also saTR for the 'lang' setting
@@ -148,7 +159,7 @@ syn region saBodyMatch matchgroup=perlMatchStartEnd start=:\%(^\(\s*lang\s\+\S\{
 syn match saTestFlags "\%(^\(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*tflags\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saTFlags,perlComment
 
 syn keyword saTFlags net nice learn userconf noautolearn multiple contained
-syn keyword saTFlags nopublish contained
+syn keyword saTFlags publish nopublish contained
 
 syn keyword saAdmin version_tag rbl_timeout util_rb_tld util_rb_2tld contained
 syn keyword saAdmin loadplugin tryplugin contained
@@ -166,17 +177,24 @@ syn keyword saAdminScores user_scores_ldap_password contained
 
 syn keyword saPreProc include ifplugin if else endif require_version contained
 
-" BUG: saFunction doesn't work, so saKeyword is not contained
-syn match saFunction "\v(exists|eval):[^\(\s]+(\s|\(.*\))" contains=saKeyword
-syn keyword saKeyword all nfssafe flock win32 exists eval
-syn keyword saKeyword check_rbl check_rbl_txt check_rbl_sub
-syn keyword saKeyword version plugin check_test_plugin
-syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist
+syn match saFunction "\v(exists|eval):[^( 	]+(\s|\([^)]*[) 	])" contains=saKeyword,saFunctionArgs
+syn keyword saKeyword nfssafe flock win32 version
+syn keyword saKeyword all exists eval check_rbl check_rbl_txt contained
+syn keyword saKeyword check_rbl_sub plugin check_test_plugin contained
+syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist contained
+syn match saFunctionArgs "[( 	][^) 	]*[) 	]" contains=saParens,perlNumber,saFunctionString contained
+syn region saFunctionString start=+'+ end=+'+ skip=+\\'+ contained
+syn region saFunctionString start=+"+ end=+"+ skip=+\\"+ contained
+syn match saParens "[()]"
+
+"syn match saMeta "^\%(\%(\s*lang\s+\S\{2,9\}\s+\)\?\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens
+syn match saMeta "\%(\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens,perlNumber,perlFloat
+syn match saMetaOp "||\|&&\|[-+*/><=]\+" contained
 
 """""""""""""
 " PLUGINS (only those that ship with Spamassassin, small plugins are above)
 
-syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saReplaceMatch,saPluginMisc
+syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saReplaceMatch,saPluginMisc,saURIBLtype
 syn cluster saPluginKeywords contains=saShortCircuitKeys,saVerifyKeys,saDNSBLKeys,saAVKeys,saLangKeys,saLocaleKeys
 
 " DCC, Pyzor, Razor2, Hashcash
@@ -208,6 +226,8 @@ syn keyword saDNSBL spamcop_from_address spamcop_to_address contained
 syn keyword saDNSBL spamcop_max_report_size uridnsbl_skip_domain contained
 syn keyword saDNSBL uridnsbl_max_domains urirhsbl urirhssub contained
 syn keyword saDNSBLKeys check_uridnsbl
+
+syn match saURIBLtype "\%(\<urirhss[bu][lb]\s\+\w\+\s\+\S\+\s\+\)\@<=\(A\|TXT\)\>"
 
 syn keyword saAWL use_auto_whitelist auto_whitelist_factor contained
 syn keyword saAWL user_awl_override_username auto_whitelist_path contained
@@ -289,8 +309,14 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saPreProc 		StorageClass
   HiLink saIPaddress		Float
   HiLink saBodyMatch		perlMatch
-  HiLink saFunction		Function
   HiLink saKeyword		StorageClass
+  HiLink saHeaderClause		StorageClass
+  HiLink saHeaderType		StorageClass
+  HiLink saHeaderString		String
+  HiLink saFunction		Function
+  HiLink saFunctionString	String
+  HiLink saParens		StorageClass
+  HiLink saMetaOp		Operator
 
   HiLink saPlugins		Statement
   HiLink saPluginKeywords	saKeyword
@@ -298,6 +324,7 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saHashChecks		saPlugins
   HiLink saVerify		saPlugins
   HiLink saDNSBL		saPlugins
+  HiLink saURIBLtype		saPluginKeywords
   HiLink saAWL			saPlugins
   HiLink saShortCircuit 	saPlugins
   HiLink saLang 		saPlugins
