@@ -3,7 +3,7 @@
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
 " Latest Revision: 2009-10-28
-" Version: 1.9
+" Version: 1.10
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -149,7 +149,9 @@ syn match saEmailGlob "\*" contained
 
 syn match saReport "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(unsafe_\)\?report\s\+\)\@<=\S.\+" contains=perlComment,@Spell
 
-syn match saHeaderRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*header\s\+[A-Z_0-9]\+\s\+\)\@<=\S.*" contains=perlComment,saHeaderRuleStuff,saHeaderRuleSpecials,saFunction,perlMatchParent
+syn match saHeaderRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*header\s\+[A-Z_0-9]\+\s\+\)\@<=\S.*" contains=perlComment,saHeaderRuleStuff,saHeaderRuleSpecials,saFunction,perlMatchParent,saHeaderMatch
+
+syn match saHeaderMatch "\s[=!]\~\s" contained nextgroup=saBodyMatch
 
 syn match saHeaderRuleStuff "exists:" contained
 syn match saHeaderRuleStuff ":\(raw\|addr\|name\)\(\s\)\@=" contained
