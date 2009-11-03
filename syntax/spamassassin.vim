@@ -2,8 +2,8 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-10-28
-" Version: 1.10
+" Latest Revision: 2009-11-02
+" Version: 1.11
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -38,7 +38,10 @@ if version >= 600
   syntax clear perlSubstitutionSQ perlStringUnexpanded perlStatementHash
 endif
 if version >= 700
-  syntax clear perlVarPlain2 perlVarBlock perlAutoload
+  syntax clear perlVarBlock perlAutoload
+endif
+if version >= 720 " might be 710?
+  syntax clear perlVarPlain2
 endif
 
 
@@ -201,7 +204,7 @@ syn keyword saKeyword nfssafe flock win32 version
 syn keyword saKeyword all check_rbl check_rbl_txt contained
 syn keyword saKeyword check_rbl_sub plugin check_test_plugin contained
 syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist contained
-syn region saFunctionContent start=+(+ end=+)+ contains=saParens,perlNumber,saFunctionString contained oneline
+syn region saFunctionContent start=+(+ end=+)+ contains=saParens,perlNumber,saFunctionString,perlComment contained oneline
 syn region saFunctionString start=+'+ end=+'+ skip=+\\'+ contained oneline
 syn region saFunctionString start=+"+ end=+"+ skip=+\\"+ contained oneline
 syn match saParens "[()]"
