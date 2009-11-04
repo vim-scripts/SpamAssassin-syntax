@@ -2,8 +2,8 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-11-02
-" Version: 1.11
+" Latest Revision: 2009-11-03
+" Version: 2.0
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009 by Adam Katz
 
@@ -22,46 +22,47 @@ if exists("b:current_syntax")
   finish
 endif
 
-" I've concluded it is far easier to get perl regex highlighting by including
-" the perl syntax highlighting rather than by farming out the code.
-" This results in lots of cancelling at the bottom of this file (incomplete...).
-runtime! syntax/perl.vim
+"""""""""""""
+" Generic bits, largely inherited or tweaked from perl
 
-" cancel problematic bits inherited from perl's highlighting
-" TODO:  redefine numbers to have better edges, LOTS more...
-if version >= 600
-  syntax clear perlRepeat perlOperator perlConditional perlStatementFiles 
-  syntax clear perlStatementProc perlStatementList perlStatementControl 
-  syntax clear perlStatementInclude perlVarPlain perlStatementFiledesc
-  syntax clear perlFunctionName perlShellCommand perlHereDoc perlStatementFlow
-  syntax clear perlUntilEOFSQ perlUntilEOFDQ perlUntilEmptySQ perlUntilEmptyDQ 
-  syntax clear perlSubstitutionSQ perlStringUnexpanded perlStatementHash
-endif
-if version >= 700
-  syntax clear perlVarBlock perlAutoload
-endif
-if version >= 720 " might be 710?
-  syntax clear perlVarPlain2
-endif
+" Regular expression matching from perl (also pulls @perlInterpSlash)
+syn include @perlInterpMatch	syntax/perl.vim
 
+syn match saMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\%(\s\)\zs\(\/\)\).*\1\2[cgimosx]*\%(\s\|$\)\@=" contains=saMatch,saComment contained
 
-syn match perlComment  "#.*" contains=perlTodo,saURL,@Spell
-
-" clear and re-implement perlMatch
-syntax clear perlMatch
-
-" match // and !?? and m?? for any ? matching punctuation
-syn match perlMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\%(\s\)\zs\(\/\)\).*\%(\%(\1\2\)[cgimosx]*\%(\%(\s.*$\)\@=\)\?\)" contains=perlMatch,perlComment contained
-syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]\z([[:punct:]]\)+ end=+\z1[cgimosx]*\%(\s\|$\)\ze+ contains=@perlInterpMatch oneline contained
-
-" caters for matching grouping:  m{} and m[] (and the !/ variant)
-syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]{+ end=+\v}[cgimosx]*\ze(\s|$)+ contains=@perlInterpMatch oneline contained
-syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]\[+ end=+\v\][cgimosx]*\ze(\s|$)+ contains=@perlInterpMatch oneline contained
+" caters for matching by grouping:  m{} and m[] (and the !/ variant)
+syn match saMatchParent	"\<[m!]\([[{]\).*[]}][cgimosx]*\%(\s\|$\)\@=" contains=saMatch contained
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]{+ end=+}[cgimosx]*\(\s\|$\)+ contains=@perlInterpMatch oneline contained
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\[+ end=+\][cgimosx]*\%(\s\|$\)+ contains=@perlInterpMatch oneline contained
 
 " A special case for m!!x which allows for comments and extra whitespace
-syn region perlMatch	matchgroup=perlMatchStartEnd start=+[m!]!+ end=+\v![cgimosx]*\ze(\s|$)+ contains=@perlInterpSlash,perlComment oneline contained
+" (Linebreaks and comments in regexps are buggy, probably(?) unsupported in SA)
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]!+ end=+![cgimosx]*\%(\s\|$\)+ contains=@perlInterpSlash,saComment contained
+
+" match // and !?? and m?? for any ? matching punctuation
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\z([[:punct:]]\)+ end=+\z1[cgimosx]*\%(\s\|$\)\ze+ contains=@perlInterpSlash oneline contained
 
 
+syn region  saQuote	start=+'+ end=+'+ skip=+\\'+ oneline contains=@Spell
+syn region  saQuote	start=+"+ end=+"+ skip=+\\"+ oneline contains=@Spell,saTemplateTags
+
+syn keyword saTodo	TODO TBD FIXME XXX BUG contained
+syn match   saComment	"#.*" contains=saTodo,saURL,@Spell
+
+syn match saParens "[()]"
+syn match saNumber "\%(^\|\s\)\@<=-\?\d\+\%(\.\d\+\)\?\%(\s\|$\)\@="
+syn match saNumber "\%(^\|\s\|[-+*/_.,<=>!~()]\)\@<=-\?\d\+\%(\.\d\+\)\?\%(\s\|[-+*/_.,<=>!~()]\|$\)\@=" contained " operators allowed
+syn match saIPaddress "\v\s\zs(([012]?\d?\d)\.){1,3}([012]?\d?\d(\/[0123]\d)?)?\ze(\s|$)"
+syn match saURL "\v(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSpell transparent "contained
+"syn match saPath "\v(\s|:)/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/([msixpgc]+\>)\@!" transparent
+" previously also needed this workaround:
+"syn match saPath "\v(\s|:)\zs/(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+" transparent
+syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}([^a-z*]|$)\@=" contains=saEmailGlob
+syn match saEmailGlob "\*" contained
+
+
+"""""""""""""
+" SpamAssassin-specific bits
 
 syn match saRuleLine "\v^(\s*lang\s+\S{2,9}\s+)?\s*\w+" contains=@saRule,saTR
 syn match saPreProLine "^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\w\+$" contains=saPreProc
@@ -109,7 +110,7 @@ syn keyword saSQLTags _TABLE_ _USERNAME_ _MAILBOX_ _DOMAIN_
 
 " more added by the TextCat plugin below, see also saTR for the 'lang' setting
 syn keyword saLang ok_locales normalize_charset contained
-syn match saLocaleLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*ok_locales\s\+\)\@<=\S.\+" contains=saLocaleKeys,perlComment
+syn match saLocaleLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*ok_locales\s\+\)\@<=\S.\+" contains=saLocaleKeys,saComment
 syn keyword saLocaleKeys en ja ko ru th zh contained
 
 syn keyword saNet trusted_networks clear_trusted_networks contained
@@ -136,28 +137,20 @@ syn keyword saMisc clear_unsafe_report_template contained
 
 syn keyword saPrivileged allow_user_rules redirector_pattern contained
 
-syn keyword saType header describe score meta body rawbody full lang contained
+syn keyword saType lang score header describe meta body rawbody full contained
 syn keyword saType priority test tflags uri mimeheader uri_detail contained
 
 syn keyword saTR lang contained
 syn match saTR "\v\s\S{2,9}\s+" contained contains=saLangKeys
 
-syn match saIPaddress "\v\s\zs(([012]?\d?\d)\.){1,3}([012]?\d?\d(\/[0123]\d)?)?\ze(\s|$)"
-syn match saURL "\v(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSpell transparent "contained
-"syn match saPath "\v(\s|:)/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/([msixpgc]+\>)\@!" transparent
-" previously also needed this workaround:
-"syn match saPath "\v(\s|:)\zs/(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+" transparent
-syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}([^a-z*]|$)\@=" contains=saEmailGlob
-syn match saEmailGlob "\*" contained
+syn match saReport "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(unsafe_\)\?report\s\+\)\@<=\S.\+" contains=saComment,@Spell
 
-syn match saReport "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(unsafe_\)\?report\s\+\)\@<=\S.\+" contains=perlComment,@Spell
-
-syn match saHeaderRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*header\s\+[A-Z_0-9]\+\s\+\)\@<=\S.*" contains=perlComment,saHeaderRuleStuff,saHeaderRuleSpecials,saFunction,perlMatchParent,saHeaderMatch
+syn match saHeaderRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*header\s\+[A-Z_0-9]\+\s\+\)\@<=\S.*" contains=saComment,saHeaderRuleStuff,saHeaderRuleSpecials,saFunction,saMatchParent,saHeaderMatch
 
 syn match saHeaderMatch "\s[=!]\~\s" contained nextgroup=saBodyMatch
 
 syn match saHeaderRuleStuff "exists:" contained
-syn match saHeaderRuleStuff ":\(raw\|addr\|name\)\(\s\)\@=" contained
+syn match saHeaderRuleStuff ":\%(raw\|addr\|name\)\%(\s\)\@=" contained
 syn match saHeaderRuleStuff "\[if-unset:\s*" contained nextgroup=saHRSunsetC
 syn match saHRSunsetC "[^]]*" contained nextgroup=saHRSunsetP2
 syn match saHRSunsetP2 "\]" contained
@@ -165,20 +158,20 @@ syn match saHRSunsetP2 "\]" contained
 syn keyword saHeaderRuleSpecials ALL ToCc EnvelopeFrom MESSAGEID X-Spam-Relays-Untrusted X-Spam-Relays-Trusted X-Spam-Relays-Internal X-Spam-Relays-External contained
 
 " rule descriptions recommended max length is 50
-syn match saDescribe "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*describe\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\{1,50}" contains=perlComment,saURL,@Spell nextgroup=saDescribeOverflow1 keepend
+syn match saDescribe "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*describe\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\{1,50}" contains=saComment,saURL,@Spell nextgroup=saDescribeOverflow1
 " interrupt saURL color, but don't spellcheck the next part
 syn region saDescribeOverflow1 start=+.+ end="[^-A-Za-z0-9_.:@/#%,;~?+=&]" oneline contained contains=@NoSpell nextgroup=saDescribeOverflow2
 " spellchecking may resume
-syn match saDescribeOverflow2 ".*$" contained contains=@Spell,perlComment
+syn match saDescribeOverflow2 ".*$" contained contains=@Spell,saComment
 
 " body rules have regular expressions w/out a leading =~
-"syn region saBodyMatch matchgroup=perlMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(raw\)\?body\s\+[A-Z_0-9]\+\s\+\)\@<=\%(m\)/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,perlMatchParent
-syn region saBodyMatch matchgroup=perlMatchStartEnd start=:/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,perlMatchParent contained
-syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(\%(raw\)\?body\|full\)\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saFunction,perlComment,saBodyMatch,perlMatchParent
+"syn region saBodyMatch matchgroup=saMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(raw\)\?body\s\+[A-Z_0-9]\+\s\+\)\@<=\%(m\)/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,saMatchParent
+syn region saBodyMatch matchgroup=saMatchStartEnd start=:/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,saMatchParent contained
+syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(\%(raw\)\?body\|full\)\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saFunction,saComment,saBodyMatch,saMatchParent
 " uri can't contain saFunction
-syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=perlComment,saBodyMatch,perlMatchParent
+syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saComment,saBodyMatch,saMatchParent
 
-syn match saTestFlags "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*tflags\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saTFlags,perlComment
+syn match saTestFlags "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*tflags\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saTFlags,saComment
 
 syn keyword saTFlags net nice learn userconf noautolearn multiple contained
 syn keyword saTFlags publish nopublish contained
@@ -204,13 +197,12 @@ syn keyword saKeyword nfssafe flock win32 version
 syn keyword saKeyword all check_rbl check_rbl_txt contained
 syn keyword saKeyword check_rbl_sub plugin check_test_plugin contained
 syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist contained
-syn region saFunctionContent start=+(+ end=+)+ contains=saParens,perlNumber,saFunctionString,perlComment contained oneline
+syn region saFunctionContent start=+(+ end=+)+ contains=saParens,saNumber,saFunctionString,saComment contained oneline
 syn region saFunctionString start=+'+ end=+'+ skip=+\\'+ contained oneline
 syn region saFunctionString start=+"+ end=+"+ skip=+\\"+ contained oneline
-syn match saParens "[()]"
 
 "syn match saMeta "^\%(\%(\s*lang\s+\S\{2,9\}\s+\)\?\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens
-syn match saMeta "\%(\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens,perlNumber,perlFloat
+syn match saMeta "\%(\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens,saNumber
 syn match saMetaOp "||\|&&\|[-+*/><=]\+" contained
 
 """""""""""""
@@ -272,7 +264,7 @@ syn keyword saAVKeys check_microsoft_executable check_suspect_name
 syn keyword saLang ok_languages inactive_languages contained
 syn keyword saLang textcat_max_languages textcat_optimal_ngrams contained
 syn keyword saLang textcat_max_ngrams textcat_acceptable_score contained
-syn match saLangLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(ok_languages\|inactive_languages\)\s\+\)\@<=\S.\+" contains=saLangKeys,perlComment
+syn match saLangLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(ok_languages\|inactive_languages\)\s\+\)\@<=\S.\+" contains=saLangKeys,saComment
 syn keyword saLangKeys af am ar be bg bs ca cs cy da de el en eo es contained
 syn keyword saLangKeys et eu fa fi fr fy ga gd he hi hr hu hy id is contained
 syn keyword saLangKeys it ja ka ko la lt lv mr ms ne nl no pl pt qu contained
@@ -283,10 +275,10 @@ syn keyword saLangKeys uk vi yi zh zh.big5 zh.gb2312 contained
 syn keyword saReplace replace_start replace_end replace_tag contained
 syn keyword saReplace replace_rules replace_tag replace_pre contained
 syn keyword saReplace replace_inter replace_post contained
-syn region saReplaceMatch matchgroup=perlMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*replace_\%(tag\|pre\|post\|inter\)\s\+\S\+\s\+\)\@<=: end=:$: contains=@perlInterpSlash
+syn region saReplaceMatch matchgroup=saMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*replace_\%(tag\|pre\|post\|inter\)\s\+\S\+\s\+\)\@<=: end=:$: contains=@perlInterpSlash
 
 " URIDetail
-syn match saURIDetail "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri_detail\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saURIDetailKeys,perlMatchParent
+syn match saURIDetail "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri_detail\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saURIDetailKeys,saMatchParent
 syn keyword saURIDetailKeys raw type cleaned text domain contained
 
 " ASN
@@ -302,9 +294,6 @@ syn keyword saPluginMisc popauth_hash_file contained
 
 """""""""""""
 
-" double-quoted items can contain Template Tags
-syn cluster perlInterpDQ contains=saTemplateTags
-
 if version >= 508 || !exists("did_spamassassin_syntax_inits")
   if version < 508
     let did_spamassassin_syntax_inits = 1
@@ -312,6 +301,19 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   else
     command -nargs=+ HiLink hi def link <args>
   endif
+
+  HiLink saQuote		String
+  HiLink saTodo			Todo
+  HiLink saComment		Comment
+  HiLink saMatch		String
+  HiLink saMatchStartEnd	Statement
+  HiLink saParens		StorageClass
+  HiLink saNumber		Float
+  HiLink saIPaddress		Float
+  "HiLink saURL			StorageClass
+  "HiLink saPath 		String
+  HiLink saEmail		StorageClass
+  HiLink saEmailGlob		Operator
 
   HiLink saLists 		Statement
   HiLink saHeaderType 		Statement
@@ -330,8 +332,7 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saAdminBayes 		Statement
   HiLink saAdminScores 		Statement
   HiLink saPreProc 		StorageClass
-  HiLink saIPaddress		Float
-  HiLink saBodyMatch		perlMatch
+  HiLink saBodyMatch		saMatch
   HiLink saHeaderRuleSpecials	Operator
   HiLink saHeaderRuleStuff	StorageClass
   HiLink saHRSunsetP2		StorageClass
@@ -341,7 +342,6 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saHeaderString		String
   HiLink saFunction		Function
   HiLink saFunctionString	String
-  HiLink saParens		StorageClass
   HiLink saMetaOp		Operator
 
   HiLink saPlugins		Statement
@@ -365,11 +365,6 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saAVKeys		saPluginKeywords
   HiLink saLangKeys		saPluginKeywords
   HiLink saLocaleKeys		saLangKeys
-
-  "HiLink saURL			StorageClass
-  "HiLink saPath 		String
-  HiLink saEmail		StorageClass
-  HiLink saEmailGlob		Operator
 
   delcommand HiLink
 endif
