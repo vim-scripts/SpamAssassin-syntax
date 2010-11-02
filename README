@@ -1,7 +1,6 @@
 This is a mirror of http://www.vim.org/scripts/script.php?script_id=2617
 
 * Regular expression highlighting (from perl)
-* Should work in all versions of vim, properly disabling the features for v7+
 * COMPLETE recognition of all settings with a good understanding of syntax
 * Settings recognized include all plugins shipped with SA plus a few 3rd-party plugins.
 

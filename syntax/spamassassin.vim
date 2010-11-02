@@ -2,10 +2,9 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Latest Revision: 2009-11-03
-" Version: 2.0
+" Version: 3.0
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
-" Copyright: (c) 2009 by Adam Katz
+" Copyright: (c) 2009-10 by Adam Katz
 
 " Save this file to ~/.vim/syntax/spamassassin.vim
 " and add the following to your ~/.vim/filetype.vim:
@@ -18,56 +17,98 @@
 " including all plugins that ship with SpamAssassin and even a few others.
 " Only a few eval:foobar() functions are supported (there are too many).
 
+if version < 600
+  echo "Vim 6 or later is needed for this syntax file"
+  finish " ... note that 'finish' isn't vim-5 compatible...
+endif
+
 if exists("b:current_syntax")
   finish
 endif
 
-"""""""""""""
-" Generic bits, largely inherited or tweaked from perl
-
 " Regular expression matching from perl (also pulls @perlInterpSlash)
 syn include @perlInterpMatch	syntax/perl.vim
 
-syn match saMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\%(\s\)\zs\(\/\)\).*\1\2[cgimosx]*\%(\s\|$\)\@=" contains=saMatch,saComment contained
+syntax sync clear
+if exists('+synmaxcol')
+  set synmaxcol=6000 " this is a minor slowdown, needed for super-long metas
+endif
+if exists('+minlines')
+  syntax sync minlines=0
+elseif exists('+g:vim_minlines')
+  syntax sync g:vim_minlines=0
+endif
+" SA doesn't have multi-line items (except if/endif, which we don't track)
+if exists('+maxlines')
+  syntax sync maxlines=2 " this should provide a significant speed boost
+elseif exists('+g:vim_maxlines')
+  syntax sync g:vim_minlines=2
+endif
+
+
+"""""""""""""
+" Generic bits, largely inherited or tweaked from perl
+
+syn match saMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\s\zs\(\/\)\).*\1\2[cgimosx]*\%(\s\|$\)\@=" contains=saMatch,saComment contained
 
 " caters for matching by grouping:  m{} and m[] (and the !/ variant)
-syn match saMatchParent	"\<[m!]\([[{]\).*[]}][cgimosx]*\%(\s\|$\)\@=" contains=saMatch contained
-syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]{+ end=+}[cgimosx]*\(\s\|$\)+ contains=@perlInterpMatch oneline contained
+syn match saMatchParent	"\<[m!]\%([[{]\).*[]}][cgimosx]*\%(\s\|$\)\@=" contains=saMatch contained
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]{+ end=+}[cgimosx]*\%(\s\|$\)+ contains=@perlInterpMatch oneline contained
 syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\[+ end=+\][cgimosx]*\%(\s\|$\)+ contains=@perlInterpMatch oneline contained
 
 " A special case for m!!x which allows for comments and extra whitespace
 " (Linebreaks and comments in regexps are buggy, probably(?) unsupported in SA)
-syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]!+ end=+![cgimosx]*\%(\s\|$\)+ contains=@perlInterpSlash,saComment contained
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]!+ end=+![cgimosx]*\%(\s\|$\)+ contains=@perlInterpSlash,saComment oneline contained
 
 " match // and !?? and m?? for any ? matching punctuation
-syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\z([[:punct:]]\)+ end=+\z1[cgimosx]*\%(\s\|$\)\ze+ contains=@perlInterpSlash oneline contained
+syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\z([[:punct:]]\)+ end=+\ze\z1[cgimosx]*\%(\s\|$\)+ contains=@perlInterpSlash oneline contained
 
+syn match saWrongMatchOp	"[~]=" containedin=ALL
 
 syn region  saQuote	start=+'+ end=+'+ skip=+\\'+ oneline contains=@Spell
 syn region  saQuote	start=+"+ end=+"+ skip=+\\"+ oneline contains=@Spell,saTemplateTags
 
 syn keyword saTodo	TODO TBD FIXME XXX BUG contained
-syn match   saComment	"#.*" contains=saTodo,saURL,@Spell
+syn match   saComment	"#.*$" contains=saTodo,saURL,@Spell
 
 syn match saParens "[()]"
-syn match saNumber "\%(^\|\s\)\@<=-\?\d\+\%(\.\d\+\)\?\%(\s\|$\)\@="
-syn match saNumber "\%(^\|\s\|[-+*/_.,<=>!~()]\)\@<=-\?\d\+\%(\.\d\+\)\?\%(\s\|[-+*/_.,<=>!~()]\|$\)\@=" contained " operators allowed
-syn match saIPaddress "\v\s\zs(([012]?\d?\d)\.){1,3}([012]?\d?\d(\/[0123]\d)?)?\ze(\s|$)"
-syn match saURL "\v(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSpell transparent "contained
-"syn match saPath "\v(\s|:)/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/([msixpgc]+\>)\@!" transparent
+syn match saNumber "\s\@<=-\?\d\{1,90\}\>\%(\.\d\{1,90\}\)\?\>"
+syn match saNumber "(-\?\d\{1,90\}\>\%(\.\d\{1,90\}\)\?)" contains=saParens
+syn match saNumber "[-+*/.,<=>!~[:space:]]\@<=-\?\d\{1,90\}\%(\.\d\{1,90\}\)\?\%(\s\|[-+*/.,<=>!~]\|$\)\@=" contained
+syn match saIPaddress "\s\@<=\%([012]\?\d\?\d\.\)\{1,3\}\%([012]\?\d\?\d\%(\/[0123]\?\d\)\?\)\?\%(\s\|$\)"
+syn match saURL "\v\%(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSpell transparent "contained
+"syn match saPath "\v[:[:space:]]/[-A-Za-z0-9_.:@/%,;~+=&]+[^\\]/\%([msixpgc]+\>)\@!" transparent
 " previously also needed this workaround:
-"syn match saPath "\v(\s|:)\zs/(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+" transparent
-syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}([^a-z*]|$)\@=" contains=saEmailGlob
+"syn match saPath "\v[:[:space:]]\zs/\%(etc|usr|tmp|var|dev|bin|home|mnt|opt|root)/[-A-Za-z0-9_.:@/%,;~+=&]+" transparent
+syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}%([^a-z*]|$)\@=" contains=saEmailGlob
 syn match saEmailGlob "\*" contained
+
+syn match saString "\S.*$" contains=saComment contained
+syn match saError "\S.*$" contains=saComment contained
+syn match saErrWord "\S\+" contains=saComment contained
 
 
 """""""""""""
 " SpamAssassin-specific bits
 
-syn match saRuleLine "\v^(\s*lang\s+\S{2,9}\s+)?\s*\w+" contains=@saRule,saTR
-syn match saPreProLine "^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\w\+$" contains=saPreProc
+syn match saRuleStart "^" nextgroup=saTR,saRuleLine skipwhite
+syn match saRuleLine "" contained nextgroup=saReport,@saRule,saType,saComment,saDescribe,saPrivileged,@saPlugins skipwhite
 
-syn cluster saRule contains=saLists,saHeaderType,saTemplateTags,saNet,saBayes,saMisc,saPrivileged,saType,saDescribe,saReport,saBodyMatch,saAdmin,saAdminBayes,saAdminScores,saPreProc,@saPlugins,saIPaddress,saKeyword
+syn keyword saTR lang contained nextgroup=saLangKeys,saErrWord skipwhite
+  syn keyword saLangKeys af am ar be bg bs ca cs cy da de el en eo es et contained nextgroup=saRuleLine skipwhite
+  syn keyword saLangKeys eu fa fi fr fy ga gd he hi hr hu hy id is it ja contained nextgroup=saRuleLine skipwhite
+  syn keyword saLangKeys ka ko la lt lv mr ms ne nl no pl pt qu rm ro ru contained nextgroup=saRuleLine skipwhite
+  syn keyword saLangKeys sa sco sk sl sq sr sv sw ta th tl tr uk vi yi contained nextgroup=saRuleLine skipwhite
+  syn keyword saLangKeys zh uk vi yi zh contained nextgroup=saRuleLine skipwhite
+  syn match   saLangKeys "\<zh\.\%(big5\|gb2312\)\>" contained nextgroup=saRuleLine skipwhite
+
+syn cluster saRule contains=saLists,saHeaderType,saTemplateTags,saNet,saBayes,saMisc,saPrivileged,saType,saDescribe,saAdmin,saAdminBayes,saAdminScores,saPreProc,@saPlugins
+
+" a cluster of pretty-much identical regexps matching SA rule names
+" (with different match names due to different nextgroups)
+syn cluster saRuleNames contains=saHeaderRule,saDescRule,saBodyRule,saUriRule,saTFlagsRule,saMetaRule,saURIBLRule,saShortCircuitRule,saURIDetailRule
+  syn match saPredicate "\<__\w\+\>" contained containedin=@saRuleNames
+  syn match saTestRule "\<\%(__\)\?T_\w\+\>" contained containedin=@saRuleNames
 
 syn keyword saLists blacklist_from contained
 syn keyword saLists unblacklist_from blacklist_to whitelist_from contained
@@ -78,40 +119,44 @@ syn keyword saLists def_whitelist_auth unwhitelist_auth more_spam_to contained
 syn keyword saLists all_spam_to whitelist_bounce_relays contained
 syn keyword saLists whitelist_subject blacklist_subject contained
 
-syn keyword saHeaderType rewrite_header add_header remove_header contained
 syn keyword saHeaderType clear_headers report_safe contained
 
-syn match saHeader "\%(\<rewrite_header\s\+\)\@<=\S\+" contains=saHeaderType nextgroup=saHeaderString
-syn match saHeader "\%(\<add_header\s\+\)\@<=\S\+\s\+\S\+\s\+" contains=saHeaderClause nextgroup=saHeaderString
-syn match saHeader "\%(\<remove_header\s\+\)\@<=" nextgroup=saHeaderClause
-syn keyword saHeaderClause spam ham all contained
-syn keyword saHeaderClause Spam Ham All ALL contained
-syn keyword saHeaderType subject from to contained
-syn keyword saHeaderType Subject From To contained
-syn match saHeaderString ".*$" contained contains=saTemplateTags
-syn match saTemplateTags "_\%(SCORE|\%(SP\|H\)AMMYTOKENS\)([0-9]\+)_" contained
-syn match saTemplateTags "_\%(STARS\|\%(SUB\)\?TESTS\%(SCORES\)\?|HEADER\)(..*)_" contained
-syn keyword saTemplateTags _YESNOCAPS_ _YESNO_ _REQD_ _VERSION_ contained
-syn keyword saTemplateTags _SUBVERSION_ _SCORE_ _HOSTNAME_ contained
-syn keyword saTemplateTags _REMOTEHOSTNAME_ _REMOTEHOSTADDR_ contained
-syn keyword saTemplateTags _BAYES_ _TOKENSUMMARY_ _BAYESTC_ contained
-syn keyword saTemplateTags _BAYESTCLEARNED_ _BAYESTCSPAMMY_ contained
-syn keyword saTemplateTags _BAYESTCHAMMY_ _HAMMYTOKENS_ _SPAMMYTOKENS_ contained
-syn keyword saTemplateTags _DATE_ _STARS_ _RELAYSTRUSTED_ contained
-syn keyword saTemplateTags _RELAYSUNTRUSTED_ _RELAYSINTERNAL_ contained
-syn keyword saTemplateTags _RELAYSEXTERNAL_ _LASTEXTERNALIP_ contained
-syn keyword saTemplateTags _LASTEXTERNALRDNS_ _LASTEXTERNALHELO_ contained
-syn keyword saTemplateTags _AUTOLEARN_ _AUTOLEARNSCORE_ _TESTS_ contained
-syn keyword saTemplateTags _TESTSCORES_ _SUBTESTS_ _DCCB_ _DCCR_ contained
-syn keyword saTemplateTags _PYZOR_ _RBL_ _LANGUAGES_ _PREVIEW_ contained
-syn keyword saTemplateTags _REPORT_ _SUMMARY_ _CONTACTADDRESS_ contained
-syn keyword saTemplateTags _RELAYCOUNTRY_ contained
+syn keyword saHeaderType rewrite_header nextgroup=saHeaderRWName,saErrWord skipwhite
+  syn keyword saHeaderRWName subject from to Subject From To contained nextgroup=saHeaderString skipwhite
+
+syn keyword saHeaderType add_header nextgroup=saHeaderClause skipwhite
+  syn match   saHeaderClause "\w\{3,4\}" contained contains=saHeaderClauseList,saErrWord nextgroup=saHeaderName skipwhite
+  syn keyword saHeaderClauseList spam ham all Spam Ham All ALL contained
+    syn match saHeaderName "\S\{1,60\}" contained nextgroup=saHeaderString skipwhite transparent
+syn keyword saHeaderType remove_header nextgroup=saHeaderClauseR skipwhite
+  syn match   saHeaderClauseR "\w\{3,4\}" contained contains=saHeaderClauseList,saErrWord nextgroup=saHeaderNameR skipwhite
+    syn match saHeaderNameR "\S\{1,60\}" contained nextgroup=saError skipwhite transparent
+
+syn match saHeaderString ".\+$" contained contains=saTemplateTags
+  syn match   saTemplateTags "_\%(SCORE|\%(SP\|H\)AMMYTOKENS\)\%([0-9]\+\)_" contained
+  syn match   saTemplateTags "_\%(STARS\|\%(SUB\)\?TESTS\%(SCORES\)\?|HEADER\)\%(.\+\)_" contained
+  syn keyword saTemplateTags _YESNOCAPS_ _YESNO_ _REQD_ _VERSION_ contained
+  syn keyword saTemplateTags _SUBVERSION_ _SCORE_ _HOSTNAME_ contained
+  syn keyword saTemplateTags _REMOTEHOSTNAME_ _REMOTEHOSTADDR_ contained
+  syn keyword saTemplateTags _BAYES_ _TOKENSUMMARY_ _BAYESTC_ contained
+  syn keyword saTemplateTags _BAYESTCLEARNED_ _BAYESTCSPAMMY_ contained
+  syn keyword saTemplateTags _BAYESTCHAMMY_ _HAMMYTOKENS_ _SPAMMYTOKENS_ contained
+  syn keyword saTemplateTags _DATE_ _STARS_ _RELAYSTRUSTED_ contained
+  syn keyword saTemplateTags _RELAYSUNTRUSTED_ _RELAYSINTERNAL_ contained
+  syn keyword saTemplateTags _RELAYSEXTERNAL_ _LASTEXTERNALIP_ contained
+  syn keyword saTemplateTags _LASTEXTERNALRDNS_ _LASTEXTERNALHELO_ contained
+  syn keyword saTemplateTags _AUTOLEARN_ _AUTOLEARNSCORE_ _TESTS_ contained
+  syn keyword saTemplateTags _TESTSCORES_ _SUBTESTS_ _DCCB_ _DCCR_ contained
+  syn keyword saTemplateTags _PYZOR_ _RBL_ _LANGUAGES_ _PREVIEW_ contained
+  syn keyword saTemplateTags _REPORT_ _SUMMARY_ _CONTACTADDRESS_ contained
+  syn keyword saTemplateTags _RELAYCOUNTRY_ contained
 syn keyword saSQLTags _TABLE_ _USERNAME_ _MAILBOX_ _DOMAIN_
 
 " more added by the TextCat plugin below, see also saTR for the 'lang' setting
-syn keyword saLang ok_locales normalize_charset contained
-syn match saLocaleLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*ok_locales\s\+\)\@<=\S.\+" contains=saLocaleKeys,saComment
-syn keyword saLocaleKeys en ja ko ru th zh contained
+syn keyword saLang normalize_charset contained
+syn keyword saLang ok_locales  contained nextgroup=saLocaleWord skipwhite
+  syn match saLocaleWord "\w\+\>" contained contains=saLocaleKeys,saErrWord nextgroup=saLocaleWord skipwhite
+    syn keyword saLocaleKeys en ja ko ru th zh contained nextgroup=saLocaleKeys,saErrWord skipwhite
 
 syn keyword saNet trusted_networks clear_trusted_networks contained
 syn keyword saNet internal_networks clear_internal_networks contained
@@ -130,51 +175,71 @@ syn keyword saBayes bayes_journal_max_size bayes_expiry_max_db_size contained
 syn keyword saBayes bayes_auto_expire bayes_learn_to_journal contained
 
 syn keyword saMisc required_score lock_method fold_headers contained
-syn keyword saMisc report_safe_copy_headers envelope_sender_header contained
-syn keyword saMisc report_charset report clear_report_template contained
-syn keyword saMisc report_contact report_hostname unsafe_report contained
-syn keyword saMisc clear_unsafe_report_template contained
 
-syn keyword saPrivileged allow_user_rules redirector_pattern contained
+syn keyword saPrivileged allow_user_rules contained
+syn keyword saPrivileged redirector_pattern contained nextgroup=saBodyMatch skipwhite
 
-syn keyword saType lang score header describe meta body rawbody full contained
-syn keyword saType priority test tflags uri mimeheader uri_detail contained
+syn keyword saType lang score describe meta body rawbody full contained
+syn keyword saType priority test tflags uri mimeheader contained
 
-syn keyword saTR lang contained
-syn match saTR "\v\s\S{2,9}\s+" contained contains=saLangKeys
+syn keyword saReport unsafe_report report contained nextgroup=saString skipwhite
+syn keyword saReport report_safe_copy_headers envelope_sender_header contained
+syn keyword saReport report_charset clear_report_template contained
+syn keyword saReport report_contact report_hostname contained
+syn keyword saReport clear_unsafe_report_template contained
 
-syn match saReport "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(unsafe_\)\?report\s\+\)\@<=\S.\+" contains=saComment,@Spell
+syn keyword saEval eval contained nextgroup=saHeaderEvalColon
+  syn match saHeaderEvalColon ":" contained nextgroup=saFunction
+    syn match saFunction "[^([:space:]]\+" contains=saKeyword nextgroup=saFunctionContent contained
+        syn keyword saKeyword nfssafe flock win32 version
+        syn keyword saKeyword all check_rbl check_rbl_txt contained
+        syn keyword saKeyword check_rbl_sub plugin check_test_plugin contained
+        syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist contained
+      syn region saFunctionContent start=+(+ end=+)+ contains=saParens,saNumber,saFunctionString,saComment contained oneline
+        syn region saFunctionString start=+'+ end=+'+ skip=+\\'+ contained oneline
+        syn region saFunctionString start=+"+ end=+"+ skip=+\\"+ contained oneline
 
-syn match saHeaderRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*header\s\+[A-Z_0-9]\+\s\+\)\@<=\S.*" contains=saComment,saHeaderRuleStuff,saHeaderRuleSpecials,saFunction,saMatchParent,saHeaderMatch
+syn keyword saType mimeheader header contained nextgroup=saHeaderRule skipwhite
+  syn match saHeaderRule "\w\+\>" contained nextgroup=saHeaderHeaderPre,saEval,saHeaderHeader skipwhite
+    syn keyword saHeaderHeaderPre exists contained nextgroup=saHeaderExistsColon
+      syn match saHeaderExistsColon ":" contained nextgroup=saHeaderRuleSpecials
+    syn match saHeaderHeader "[^:[:space:]]\+" contained nextgroup=saHeaderHeaderPost,saHeaderMatch contains=saHeaderRuleSpecials,saMatchParent,saHeaderMatch
+        syn keyword saHeaderRuleSpecials ALL ToCc EnvelopeFrom MESSAGEID contained
+        syn match saHeaderRuleSpecials "\<ALL-\%(\%(UN\)?TRUSTED\|\%(IN\|EX\)TERNAL\)\>" contained
+        syn match saHeaderRuleSpecials "\<X-Spam-Relays-\%(\%(Unt\|T\)rusted\|\%(In\|Ex\)ternal\)\>" contained
+      syn match saHeaderHeaderPost ":" contained nextgroup=saHeaderHeaderPostWord
+      syn keyword saHeaderHeaderPostWord raw addr name contained nextgroup=saHeaderMatch
+      syn match saHeaderMatch "\s\+[=!]\~" contained nextgroup=saBodyMatch skipwhite
 
-syn match saHeaderMatch "\s[=!]\~\s" contained nextgroup=saBodyMatch
+" this 'should' be contained (but not by saBodyMatch) somehow
+syn match saHeaderPost "\[if-unset:" nextgroup=saUnset skipwhite
+  syn match saUnset "[^\]]*" contained nextgroup=saUnsetEnd
+    syn match saUnsetEnd "\]" contained
 
-syn match saHeaderRuleStuff "exists:" contained
-syn match saHeaderRuleStuff ":\%(raw\|addr\|name\)\%(\s\)\@=" contained
-syn match saHeaderRuleStuff "\[if-unset:\s*" contained nextgroup=saHRSunsetC
-syn match saHRSunsetC "[^]]*" contained nextgroup=saHRSunsetP2
-syn match saHRSunsetP2 "\]" contained
 
-syn keyword saHeaderRuleSpecials ALL ToCc EnvelopeFrom MESSAGEID X-Spam-Relays-Untrusted X-Spam-Relays-Trusted X-Spam-Relays-Internal X-Spam-Relays-External contained
 
 " rule descriptions recommended max length is 50
-syn match saDescribe "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*describe\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\{1,50}" contains=saComment,saURL,@Spell nextgroup=saDescribeOverflow1
-" interrupt saURL color, but don't spellcheck the next part
-syn region saDescribeOverflow1 start=+.+ end="[^-A-Za-z0-9_.:@/#%,;~?+=&]" oneline contained contains=@NoSpell nextgroup=saDescribeOverflow2
-" spellchecking may resume
-syn match saDescribeOverflow2 ".*$" contained contains=@Spell,saComment
+syn keyword saDescribe describe contained nextgroup=saDescRule skipwhite
+  syn match saDescRule "\w\+\>" contained nextgroup=saDescription skipwhite
+    syn match saDescription "\S.\{0,50\}" contained contains=saComment,saURL,@Spell nextgroup=saDescribeOverflow1
+      " interrupt saURL color, but don't spellcheck the next part
+      syn region saDescribeOverflow1 start=+.+ end="[^-A-Za-z0-9_.:@/#%,;~?+=&]" oneline contained contains=@NoSpell nextgroup=saDescribeOverflow2
+        " spellchecking may resume
+        syn match saDescribeOverflow2 ".\+$" contained contains=@Spell,saComment
 
 " body rules have regular expressions w/out a leading =~
-"syn region saBodyMatch matchgroup=saMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(raw\)\?body\s\+[A-Z_0-9]\+\s\+\)\@<=\%(m\)/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,saMatchParent
-syn region saBodyMatch matchgroup=saMatchStartEnd start=:/: end=:\v/[cgimosx]*(\s|$)|$: contains=@perlInterpSlash,saMatchParent contained
-syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(\%(raw\)\?body\|full\)\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saFunction,saComment,saBodyMatch,saMatchParent
-" uri can't contain saFunction
-syn match saRegexpRule "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saComment,saBodyMatch,saMatchParent
+syn region saBodyMatch matchgroup=saMatchStartEnd start=:/: end=:/[cgimosx]*\%(\s\|$\): contains=@perlInterpSlash,saMatchParent oneline contained
 
-syn match saTestFlags "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*tflags\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saTFlags,saComment
+syn keyword saType rawbody body full contained nextgroup=saBodyRule skipwhite
+  syn match saBodyRule "\w\+\>" contained nextgroup=saEval,saBodyMatch skipwhite
+" uri can't contain saEval
+syn keyword saType uri contained nextgroup=saUriRule skipwhite
+  syn match saUriRule "\w\+\>" contained nextgroup=saBodyMatch skipwhite
 
-syn keyword saTFlags net nice learn userconf noautolearn multiple contained
-syn keyword saTFlags publish nopublish contained
+syn keyword saType tflags contained nextgroup=saTFlagsRule skipwhite
+  syn match saTFlagsRule "\w\+\>" contained nextgroup=saTFlags skipwhite
+    syn keyword saTFlags net nice learn userconf noautolearn multiple contained nextgroup=saTFlags skipwhite
+    syn keyword saTFlags publish nopublish contained nextgroup=saTFlags skipwhite
 
 syn keyword saAdmin version_tag rbl_timeout util_rb_tld util_rb_2tld contained
 syn keyword saAdmin loadplugin tryplugin contained
@@ -191,25 +256,18 @@ syn keyword saAdminScores user_scores_ldap_username contained
 syn keyword saAdminScores user_scores_ldap_password contained
 
 syn keyword saPreProc include ifplugin if else endif require_version contained
+syn match saAtWord "@@\w\+@@" containedin=saComment
 
-syn match saFunction "eval:[^( 	]\+" contains=saKeyword nextgroup=saFunctionContent contained
-syn keyword saKeyword nfssafe flock win32 version
-syn keyword saKeyword all check_rbl check_rbl_txt contained
-syn keyword saKeyword check_rbl_sub plugin check_test_plugin contained
-syn keyword saKeyword check_subject_in_whitelist check_subject_in_blacklist contained
-syn region saFunctionContent start=+(+ end=+)+ contains=saParens,saNumber,saFunctionString,saComment contained oneline
-syn region saFunctionString start=+'+ end=+'+ skip=+\\'+ contained oneline
-syn region saFunctionString start=+"+ end=+"+ skip=+\\"+ contained oneline
-
-"syn match saMeta "^\%(\%(\s*lang\s+\S\{2,9\}\s+\)\?\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens
-syn match saMeta "\%(\s*meta\s\+[A-Z_0-9]\+\s\+\)\@<=.*" contains=saMetaOp,saParens,saNumber
-syn match saMetaOp "||\|&&\|[-+*/><=]\+" contained
+syn keyword saType meta contained nextgroup=saMetaRule skipwhite
+  syn match saMetaRule "\w\+\>" contained nextgroup=saMeta skipwhite
+    syn match saMeta "\S.*" contained contains=saMetaOp,saParens,saPredicate,saTestRule,saComment,saNumber,saRuleNames
+      syn match saMetaOp "||\|&&\|[!-+*/><=]\+" contained
 
 """""""""""""
 " PLUGINS (only those that ship with Spamassassin, small plugins are above)
 
-syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saReplaceMatch,saPluginMisc,saURIBLtype
-syn cluster saPluginKeywords contains=saShortCircuitKeys,saVerifyKeys,saDNSBLKeys,saAVKeys,saLangKeys,saLocaleKeys
+syn cluster saPlugins contains=saHashChecks,saVerify,saDNSBL,saAWL,saShortCircuit,saLang,saReplace,saPluginMisc
+syn cluster saPluginKeywords contains=saShortCircuitKeys,saVerifyKeys,saDNSBLKeys,saAVKeys,saLangKeys,saLocaleKeys,saURIBLtype
 
 " DCC, Pyzor, Razor2, Hashcash
 syn keyword saHashChecks use_dcc dcc_body_max dcc_fuz1_max contained
@@ -238,10 +296,13 @@ syn keyword saTemplateTags _DKIMIDENTIFY_ _DKIMDOMAIN_
 " SpamCop and URIDNSBL
 syn keyword saDNSBL spamcop_from_address spamcop_to_address contained
 syn keyword saDNSBL spamcop_max_report_size uridnsbl_skip_domain contained
-syn keyword saDNSBL uridnsbl_max_domains urirhsbl urirhssub contained
+syn keyword saDNSBL uridnsbl_max_domains contained
 syn keyword saDNSBLKeys check_uridnsbl
 
-syn match saURIBLtype "\%(\<urirhss[bu][lb]\s\+\w\+\s\+\S\+\s\+\)\@<=\%(A\|TXT\)\>"
+syn keyword saDNSBL uridnsbl uridnsbl uridnssub urirhsbl urirhssub urinsrhsbl urinsrhssub urifullnsrhsbl urifullnsrhssub contained nextgroup=saURIBLRule skipwhite
+  syn match saURIBLRule "\w\+\>" contained nextgroup=saURIBLData
+    syn match saURIBLData "\s\+\S\+\s\+" contained nextgroup=saURIBLtype
+      syn keyword saURIBLtype A TXT contained
 
 syn keyword saAWL use_auto_whitelist auto_whitelist_factor contained
 syn keyword saAWL user_awl_override_username auto_whitelist_path contained
@@ -251,34 +312,31 @@ syn keyword saAWL user_awl_sql_password user_awl_sql_table contained
 syn keyword saAWLKeys check_from_in_auto_whitelist
 syn keyword saTemplateTags _AWL_ _AWLMEAN_ _AWLCOUNT_ _AWLPRESCORE_
 
-syn keyword saShortCircuit shortcircuit shortcircuit_spam_score contained
-syn keyword saShortCircuit shortcircuit_ham_score contained
-syn match saShortCircuitLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*shortcircuit\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saShortCircuitKeys
-syn keyword saShortCircuitKeys ham spam on off contained
+syn keyword saShortCircuit shortcircuit shortcircuit_spam_score shortcircuit_ham_score contained nextgroup=saShortCircuitRule skipwhite
+  syn match saShortCircuitRule "\w\+\>" contained nextgroup=saShortCircuitKeys,saErrWord skipwhite
+    syn keyword saShortCircuitKeys ham spam on off contained
 syn keyword saTemplateTags _SC_ _SCRULE_ _SCTYPE_
 
 " AntiVirus
 syn keyword saAVKeys check_microsoft_executable check_suspect_name
 
 " TextCat (see also saTR and locale stuff in the saLang pieces above)
-syn keyword saLang ok_languages inactive_languages contained
+syn keyword saLang ok_languages inactive_languages contained nextgroup=saLangList,saError skipwhite
+  syn match saLangList "[a-z]\{2\}\S\{0,8\}\>" contained nextgroup=saLangList,saErrWord skipwhite contains=saLangKeys,saErrWord
 syn keyword saLang textcat_max_languages textcat_optimal_ngrams contained
 syn keyword saLang textcat_max_ngrams textcat_acceptable_score contained
-syn match saLangLine "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*\%(ok_languages\|inactive_languages\)\s\+\)\@<=\S.\+" contains=saLangKeys,saComment
-syn keyword saLangKeys af am ar be bg bs ca cs cy da de el en eo es contained
-syn keyword saLangKeys et eu fa fi fr fy ga gd he hi hr hu hy id is contained
-syn keyword saLangKeys it ja ka ko la lt lv mr ms ne nl no pl pt qu contained
-syn keyword saLangKeys rm ro ru sa sco sk sl sq sr sv sw ta th tl tr contained
-syn keyword saLangKeys uk vi yi zh zh.big5 zh.gb2312 contained
 
 " ReplaceTags
-syn keyword saReplace replace_start replace_end replace_tag contained
-syn keyword saReplace replace_rules replace_tag replace_pre contained
-syn keyword saReplace replace_inter replace_post contained
-syn region saReplaceMatch matchgroup=saMatchStartEnd start=:\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*replace_\%(tag\|pre\|post\|inter\)\s\+\S\+\s\+\)\@<=: end=:$: contains=@perlInterpSlash
+syn keyword saReplace replace_start replace_end contained
+syn keyword saReplace replace_rules replace_tag contained
+syn keyword saReplace replace_tag replace_pre replace_inter replace_post contained nextgroup=saReplaceTag skipwhite
+  syn match saReplaceTag "\w\+\>" contained nextgroup=saString skipwhite
 
 " URIDetail
-syn match saURIDetail "\%(^\%(\s*lang\s\+\S\{2,9\}\s\+\)\?\s*uri_detail\s\+[A-Z_0-9]\+\s\+\)\@<=\S.\+" contains=saURIDetailKeys,saMatchParent
+syn keyword saType uri_detail contained nextgroup=saURIDetailRule skipwhite
+  syn match saURIDetailRule "\w\+\>" contained nextgroup=saURIDetail skipwhite
+    syn match saURIDetail "\S.*" contained contains=saHeaderMatch,saMatchParent,saComment
+  
 syn keyword saURIDetailKeys raw type cleaned text domain contained
 
 " ASN
@@ -307,42 +365,56 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saComment		Comment
   HiLink saMatch		String
   HiLink saMatchStartEnd	Statement
+  HiLink saError		Error
+  HiLink saErrWord		Error
+  HiLink saWrongMatchOp 	saError
+  HiLink saAtWord		saError
   HiLink saParens		StorageClass
   HiLink saNumber		Float
   HiLink saIPaddress		Float
-  "HiLink saURL			StorageClass
+  "HiLink saURL			Underlined
   "HiLink saPath 		String
   HiLink saEmail		StorageClass
   HiLink saEmailGlob		Operator
+  HiLink saString		String
 
   HiLink saLists 		Statement
   HiLink saHeaderType 		Statement
   HiLink saTemplateTags		StorageClass
-  HiLink saSQLTags		StorageClass
+  HiLink saSQLTags		saTemplateTags
   HiLink saNet  		Statement
   HiLink saBayes 		Statement
   HiLink saMisc 		Statement
   HiLink saPrivileged 		Statement
   HiLink saType 		Statement
+  HiLink saReport 		saType
   HiLink saTR	 		Statement
-  HiLink saDescribe		String
-  HiLink saReport		String
+  HiLink saDescribe		saType
+  HiLink saDescription		String
+  HiLink saDescribeOverflow1	Error
+  HiLink saDescribeOverflow2	saDescribeOverflow1
   HiLink saTFlags		StorageClass
   HiLink saAdmin 		Statement
   HiLink saAdminBayes 		Statement
   HiLink saAdminScores 		Statement
-  HiLink saPreProc 		StorageClass
+  HiLink saPreProc 		PreProc
   HiLink saBodyMatch		saMatch
-  HiLink saHeaderRuleSpecials	Operator
-  HiLink saHeaderRuleStuff	StorageClass
-  HiLink saHRSunsetP2		StorageClass
+  HiLink saHeaderRuleSpecials	StorageClass
+  HiLink saHeaderHeaderPre	Identifier
+  HiLink saEval 		Identifier
+  HiLink saHeaderHeaderPostWord	StorageClass
+  HiLink saHeaderPost		StorageClass
+  HiLink saUnsetEnd		saHeaderPost
   HiLink saKeyword		StorageClass
-  HiLink saHeaderClause		StorageClass
-  HiLink saHeaderType		StorageClass
+  HiLink saHeaderClauseList	StorageClass
+  HiLink saHeaderRWName		StorageClass
   HiLink saHeaderString		String
   HiLink saFunction		Function
   HiLink saFunctionString	String
   HiLink saMetaOp		Operator
+  HiLink saPredicate		Comment
+  HiLink saTestRule		Debug
+  HiLink saHeaderMatch		Operator
 
   HiLink saPlugins		Statement
   HiLink saPluginKeywords	saKeyword
@@ -356,7 +428,6 @@ if version >= 508 || !exists("did_spamassassin_syntax_inits")
   HiLink saLang 		saPlugins
   HiLink saPluginMisc		saPlugins
   HiLink saReplace		saPlugins
-  HiLink saReplaceMatch		saBodyMatch
 
   HiLink saShortCircuitKeys	saPluginKeywords
   HiLink saURIDetailKeys	saPluginKeywords
