@@ -2,7 +2,7 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Version: 3.0
+" Version: 3.0.1
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009-10 by Adam Katz
 
@@ -352,90 +352,80 @@ syn keyword saPluginMisc popauth_hash_file contained
 
 """""""""""""
 
-if version >= 508 || !exists("did_spamassassin_syntax_inits")
-  if version < 508
-    let did_spamassassin_syntax_inits = 1
-    command -nargs=+ HiLink hi link <args>
-  else
-    command -nargs=+ HiLink hi def link <args>
-  endif
+hi def link saQuote			String
+hi def link saTodo			Todo
+hi def link saComment			Comment
+hi def link saMatch			String
+hi def link saMatchStartEnd		Statement
+hi def link saError			Error
+hi def link saErrWord			Error
+hi def link saWrongMatchOp 		saError
+hi def link saAtWord			saError
+hi def link saParens			StorageClass
+hi def link saNumber			Float
+hi def link saIPaddress			Float
+"hi def link saURL			Underlined
+"hi def link saPath 			String
+hi def link saEmail			StorageClass
+hi def link saEmailGlob			Operator
+hi def link saString			String
 
-  HiLink saQuote		String
-  HiLink saTodo			Todo
-  HiLink saComment		Comment
-  HiLink saMatch		String
-  HiLink saMatchStartEnd	Statement
-  HiLink saError		Error
-  HiLink saErrWord		Error
-  HiLink saWrongMatchOp 	saError
-  HiLink saAtWord		saError
-  HiLink saParens		StorageClass
-  HiLink saNumber		Float
-  HiLink saIPaddress		Float
-  "HiLink saURL			Underlined
-  "HiLink saPath 		String
-  HiLink saEmail		StorageClass
-  HiLink saEmailGlob		Operator
-  HiLink saString		String
+hi def link saLists 			Statement
+hi def link saHeaderType 		Statement
+hi def link saTemplateTags		StorageClass
+hi def link saSQLTags			saTemplateTags
+hi def link saNet  			Statement
+hi def link saBayes 			Statement
+hi def link saMisc 			Statement
+hi def link saPrivileged 		Statement
+hi def link saType 			Statement
+hi def link saReport 			saType
+hi def link saTR	 		Statement
+hi def link saDescribe			saType
+hi def link saDescription		String
+hi def link saDescribeOverflow1 	Error
+hi def link saDescribeOverflow2 	saDescribeOverflow1
+hi def link saTFlags			StorageClass
+hi def link saAdmin 			Statement
+hi def link saAdminBayes 		Statement
+hi def link saAdminScores 		Statement
+hi def link saPreProc 			PreProc
+hi def link saBodyMatch			saMatch
+hi def link saHeaderRuleSpecials	StorageClass
+hi def link saHeaderHeaderPre		Identifier
+hi def link saEval 			Identifier
+hi def link saHeaderHeaderPostWord	StorageClass
+hi def link saHeaderPost		StorageClass
+hi def link saUnsetEnd			saHeaderPost
+hi def link saKeyword			StorageClass
+hi def link saHeaderClauseList		StorageClass
+hi def link saHeaderRWName		StorageClass
+hi def link saHeaderString		String
+hi def link saFunction			Function
+hi def link saFunctionString		String
+hi def link saMetaOp			Operator
+hi def link saPredicate			Comment
+hi def link saTestRule			Debug
+hi def link saHeaderMatch		Operator
 
-  HiLink saLists 		Statement
-  HiLink saHeaderType 		Statement
-  HiLink saTemplateTags		StorageClass
-  HiLink saSQLTags		saTemplateTags
-  HiLink saNet  		Statement
-  HiLink saBayes 		Statement
-  HiLink saMisc 		Statement
-  HiLink saPrivileged 		Statement
-  HiLink saType 		Statement
-  HiLink saReport 		saType
-  HiLink saTR	 		Statement
-  HiLink saDescribe		saType
-  HiLink saDescription		String
-  HiLink saDescribeOverflow1	Error
-  HiLink saDescribeOverflow2	saDescribeOverflow1
-  HiLink saTFlags		StorageClass
-  HiLink saAdmin 		Statement
-  HiLink saAdminBayes 		Statement
-  HiLink saAdminScores 		Statement
-  HiLink saPreProc 		PreProc
-  HiLink saBodyMatch		saMatch
-  HiLink saHeaderRuleSpecials	StorageClass
-  HiLink saHeaderHeaderPre	Identifier
-  HiLink saEval 		Identifier
-  HiLink saHeaderHeaderPostWord	StorageClass
-  HiLink saHeaderPost		StorageClass
-  HiLink saUnsetEnd		saHeaderPost
-  HiLink saKeyword		StorageClass
-  HiLink saHeaderClauseList	StorageClass
-  HiLink saHeaderRWName		StorageClass
-  HiLink saHeaderString		String
-  HiLink saFunction		Function
-  HiLink saFunctionString	String
-  HiLink saMetaOp		Operator
-  HiLink saPredicate		Comment
-  HiLink saTestRule		Debug
-  HiLink saHeaderMatch		Operator
+hi def link saPlugins			Statement
+hi def link saPluginKeywords		saKeyword
+" (why weren't those last two lines enough?)
+hi def link saHashChecks		saPlugins
+hi def link saVerify			saPlugins
+hi def link saDNSBL			saPlugins
+hi def link saURIBLtype			saPluginKeywords
+hi def link saAWL			saPlugins
+hi def link saShortCircuit 		saPlugins
+hi def link saLang 			saPlugins
+hi def link saPluginMisc		saPlugins
+hi def link saReplace			saPlugins
 
-  HiLink saPlugins		Statement
-  HiLink saPluginKeywords	saKeyword
-  " (why weren't those last two lines enough?)
-  HiLink saHashChecks		saPlugins
-  HiLink saVerify		saPlugins
-  HiLink saDNSBL		saPlugins
-  HiLink saURIBLtype		saPluginKeywords
-  HiLink saAWL			saPlugins
-  HiLink saShortCircuit 	saPlugins
-  HiLink saLang 		saPlugins
-  HiLink saPluginMisc		saPlugins
-  HiLink saReplace		saPlugins
+hi def link saShortCircuitKeys		saPluginKeywords
+hi def link saURIDetailKeys		saPluginKeywords
+hi def link saVerifyKeys		saPluginKeywords
+hi def link saDNSBLKeys			saPluginKeywords
+hi def link saAVKeys			saPluginKeywords
+hi def link saLangKeys			saPluginKeywords
+hi def link saLocaleKeys		saLangKeys
 
-  HiLink saShortCircuitKeys	saPluginKeywords
-  HiLink saURIDetailKeys	saPluginKeywords
-  HiLink saVerifyKeys		saPluginKeywords
-  HiLink saDNSBLKeys		saPluginKeywords
-  HiLink saAVKeys		saPluginKeywords
-  HiLink saLangKeys		saPluginKeywords
-  HiLink saLocaleKeys		saLangKeys
-
-  delcommand HiLink
-endif
