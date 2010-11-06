@@ -2,7 +2,7 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Version: 3.1
+" Version: 3.2
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
 " Copyright: (c) 2009-10 by Adam Katz
 
@@ -102,10 +102,12 @@ syn keyword saTR lang contained nextgroup=saLangKeys,saLangCountry,saErrWord ski
   syn match   saLangKeys "\<zh\>\%(\.big5\|\.gb2312\|[^.]\@=\)\>" contained nextgroup=@saRule skipwhite
   syn match   saLangCountry "\v%([a-z]{2}|sco|zh\.\w+)_[A-Z]{2}>" contained nextgroup=@saRule skipwhite
 
-" These clusters can be added to by plugins.  saFunction isn't a cluster but works similarly
+" These clusters can be added to by plugins.
 syn cluster saKeyword contains=saLangKeys,saLocaleKeys
 syn cluster saRule contains=saLists,saHeaderType,saNet,saBayes,saMisc,saPrivileged,saType,saDescribe,saReport,saAdmin,saAdminBayes,saAdminScores,saPreProc,saLocale
 syn cluster saTemplateTags contains=saBaseTT
+syn cluster saTFlags contains=saBaseTFlags
+syn cluster saFunction contains=saBaseFunc
 
 " a cluster of pretty-much identical regexps matching SA rule names
 " (with different match names due to different nextgroups)
@@ -169,7 +171,7 @@ syn keyword saPrivileged allow_user_rules contained
 syn keyword saPrivileged redirector_pattern contained nextgroup=saMatchParent,saBodyMatch skipwhite
 
 syn keyword saType score describe meta body rawbody full contained
-syn keyword saType priority test tflags uri mimeheader contained
+syn keyword saType priority reuse tflags uri mimeheader contained
 
 syn keyword saReport unsafe_report report contained nextgroup=saString skipwhite
 syn keyword saReport report_safe_copy_headers envelope_sender_header report_charset contained
@@ -177,8 +179,8 @@ syn keyword saReport clear_report_template report_contact report_hostname contai
 syn keyword saReport clear_unsafe_report_template contained
 
 syn keyword saEval eval contained nextgroup=saHeaderEvalColon
-  syn match saHeaderEvalColon ":" contained nextgroup=saFunction
-    syn match saFunction "[^([:space:]]\+" contains=saBaseFuncsaKeyword nextgroup=saFunctionContent contained
+  syn match saHeaderEvalColon ":" contained nextgroup=saFunctionCall
+    syn match saFunctionCall "[^([:space:]]\+" contains=@saFunction nextgroup=saFunctionContent contained
         syn keyword saBaseFunc all check_rbl check_rbl_txt contained
         syn keyword saBaseFunc check_rbl_sub plugin check_test_plugin contained
         syn keyword saBaseFunc check_subject_in_whitelist check_subject_in_blacklist contained
@@ -224,10 +226,9 @@ syn keyword saType uri contained nextgroup=saUriRule skipwhite
 syn keyword saType tflags contained nextgroup=saTFlagsRule skipwhite
   syn match saTFlagsRule "\w\+\>" contained nextgroup=saTFlagsList skipwhite
     syn match saTFlagsList "\S.*" contained contains=@saTFlags,saErrWord
-      syn cluster saTFlags contains=saBaseTFlags
       syn keyword saBaseTFlags net nice learn userconf noautolearn multiple publish nopublish contained
 
-syn keyword saAdmin version_tag rbl_timeout util_rb_tld util_rb_2tld loadplugin tryplugin contained
+syn keyword saAdmin version_tag test rbl_timeout util_rb_tld util_rb_2tld loadplugin tryplugin contained
 
 syn keyword saAdminBayes bayes_path bayes_file_mode bayes_store_module bayes_sql_dsn contained
 syn keyword saAdminBayes bayes_sql_username bayes_sql_password bayes_sql_username_authorized contained
@@ -243,7 +244,7 @@ syn keyword saPreProc include ifplugin else endif require_version contained
 syn keyword saPreProc if contained nextgroup=saIfsLine skipwhite
   syn match saIfsLine "\S.*" contained contains=saIfKey,saIfFunc,saNumber,saParens,saMetaOp,saComment
   syn keyword saIfKey version contained
-  syn keyword saIfFunc plugin can contained containedin=saFunction
+  syn keyword saIfFunc plugin can contained
 syn match saAtWord "@@\w\+@@" containedin=saComment
 
 syn keyword saType meta contained nextgroup=saMetaRule skipwhite
@@ -260,6 +261,7 @@ syn keyword saType meta contained nextgroup=saMetaRule skipwhite
 
 syn cluster saRule add=saHashChecks,saVerify,saDNSBL,saReplace
 syn cluster saTemplateTags add=saDKIMtags
+syn cluster saFunction add=saVerifyFunc,saDNSBLfunc
 
 " Pyzor, Razor2, Hashcash
 syn keyword saHashChecks use_pyzor pyzor_max pyzor_timeout pyzor_options pyzor_path contained
@@ -271,7 +273,7 @@ syn keyword saVerify whitelist_from_spf def_whitelist_from_spf spf_timeout do_no
 syn keyword saVerify do_not_use_mail_spq_query ignore_received_spf_header contained
 syn keyword saVerify use_newest_received_spf_header contained
 syn keyword saVerify whitelist_from_dkim def_whitelist_from_dkim dkim_timeout domainkeys_timeout contained
-syn keyword saVerifyFunc check_dkim_valid check_dkim_valid_author_sig check_dkim_verified contained containedin=saFunction
+syn keyword saVerifyFunc check_dkim_valid check_dkim_valid_author_sig check_dkim_verified contained
 syn keyword saDKIMtags _DKIMIDENTIFY_ _DKIMDOMAIN_ contained
 
 " SpamCop and URIDNSBL
@@ -281,7 +283,7 @@ syn keyword saDNSBL uridnsbl uridnsbl uridnssub urirhsbl urirhssub urinsrhsbl ur
   syn match saURIBLRule "\w\+\>" contained nextgroup=saURIBLData
     syn match saURIBLData "\s\+\S\+\s\+" contained nextgroup=saURIBLkeys
       syn keyword saURIBLkeys A TXT contained
-syn keyword saDNSBLfunc check_uridnsbl contained containedin=saFunction
+syn keyword saDNSBLfunc check_uridnsbl contained
 
 " ReplaceTags
 syn keyword saReplace replace_start replace_end replace_rules contained
@@ -289,9 +291,9 @@ syn keyword saReplace replace_tag replace_pre replace_inter replace_post contain
   syn match saReplaceTag "\w\+\>" contained nextgroup=saString skipwhite
 
 " URIDetail
-syn keyword saType uri_detail contained nextgroup=saURIDetailRule skipwhite
-  syn match saURIDetailRule "\w\+\>" contained nextgroup=saURIDetail skipwhite
-    syn match saURIDetail "\S.*" contained contains=saURIDetailKeys,saHeaderMatch,saMatchParent,saErrWord,saComment
+syn keyword saURIDetail uri_detail contained nextgroup=saURIDetailRule skipwhite
+  syn match saURIDetailRule "\w\+\>" contained nextgroup=saURIDetailLine skipwhite
+    syn match saURIDetailLine "\S.*" contained contains=saURIDetailKeys,saHeaderMatch,saMatchParent,saErrWord,saComment
       syn keyword saURIDetailKeys raw type cleaned text domain contained
 
 
@@ -302,19 +304,20 @@ syn cluster saRule add=saDCC,saAWL,saLang,saShortCircuit,saASN,saPhishTag
 syn cluster saTemplateTags add=saAWLtags,saShortCircuitTags,saASNtags
 syn cluster saRuleNames add=saShortCircuitRule,saPTrule
 syn cluster saKeyword add=saShortCircuitKeys
+syn cluster saFunction add=saAVfunc,saAWLfunc,saAccessDBfunc
 
 " DCC
 syn keyword saDCC use_dcc dcc_body_max dcc_fuz1_max dcc_fuz2_max dcc_timeout contained
 syn keyword saDCC dcc_home dcc_dccifd_path dcc_path dcc_options dccifd_options contained
 
 " AntiVirus
-syn keyword saAVFunc check_microsoft_executable check_suspect_name contained containedin=saFunction
+syn keyword saAVfunc check_microsoft_executable check_suspect_name contained
 
 " AWL
 syn keyword saAWL use_auto_whitelist auto_whitelist_factor user_awl_override_username contained
 syn keyword saAWL auto_whitelist_path auto_whitelist_db_modules auto_whitelist_file_mode contained
 syn keyword saAWL user_awl_dsn user_awl_sql_username user_awl_sql_password user_awl_sql_table contained
-syn keyword saAWLfunc check_from_in_auto_whitelist contained containedin=saFunction
+syn keyword saAWLfunc check_from_in_auto_whitelist contained
 syn keyword saAWLtags _AWL_ _AWLMEAN_ _AWLCOUNT_ _AWLPRESCORE_ contained
 
 " TextCat (see also saTR and saLocale above)
@@ -324,7 +327,7 @@ syn keyword saLang textcat_max_languages textcat_optimal_ngrams contained
 syn keyword saLang textcat_max_ngrams textcat_acceptable_score contained
 
 " AccessDB
-syn keyword saAccessDBfunc check_access_database contained containedin=saFunction
+syn keyword saAccessDBfunc check_access_database contained
 
 " Shortcircuit
 syn keyword saShortCircuit shortcircuit shortcircuit_spam_score shortcircuit_ham_score contained nextgroup=saShortCircuitRule skipwhite
@@ -349,9 +352,10 @@ syn keyword saPhishTag trigger_target contained nextgroup=saPTrule skipwhite
 " Some 3rd-party plugins (not shipped with SA, simple plugins only)
 
 syn cluster saRule add=saPluginMisc
+syn cluster saFunction add=saPluginMiscFunc
 
 syn keyword saPluginMisc uricountry sagrey_header_field popauth_hash_file contained
-syn keyword saPluginFunc ixhashtest contained containedin=saFunction
+syn keyword saPluginMiscFunc ixhashtest contained
 
 
 
@@ -391,7 +395,7 @@ hi def link saSQLTags			saTemplateTags
 hi def link saLocale 			Statement
 hi def link saNet  			Statement
 hi def link saBayes 			Statement
-hi def link saMisc 			Statement
+hi def link saMisc 			saRule
 hi def link saPrivileged 		Statement
 hi def link saType 			Statement
 hi def link saReport 			saType
@@ -414,6 +418,7 @@ hi def link saHeaderPost		Type
 hi def link saUnsetEnd			saHeaderPost
 hi def link saLangKeys			saKeyword
 hi def link saIfKey			saKeyword
+hi def link saIfFunc			saFunction
 hi def link saLockKeys			saKeyword
 hi def link saHeaderClauseList		Type
 hi def link saHeaderRWName		Type
@@ -432,9 +437,10 @@ hi def link saAWL			saRule
 hi def link saShortCircuit 		saRule
 hi def link saLang 			saLocale
 hi def link saASN			saRule
-hi def link saPluginMisc		saRule
 hi def link saReplace			saRule
+hi def link saURIDetail			saRule
 hi def link saPhishTag			saRule
+hi def link saPluginMisc		saRule
 
 hi def link saURIBLkeys			saKeyword
 hi def link saShortCircuitKeys		saKeyword
@@ -446,3 +452,9 @@ hi def link saDKIMtags			saTemplateTags
 hi def link saAWLtags			saTemplateTags
 hi def link saShortCircuitTags		saTemplateTags
 
+hi def link saVerifyFunc		saFunction
+hi def link saDNSBLfunc			saFunction
+hi def link saAVfunc			saFunction
+hi def link saAWLfunc			saFunction
+hi def link saAccessDBfunc		saFunction
+hi def link saPluginMiscFunc		saFunction
