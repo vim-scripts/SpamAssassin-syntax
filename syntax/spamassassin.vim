@@ -2,9 +2,9 @@
 " Language: Spamassassin configuration file
 " Maintainer: Adam Katz <scriptsATkhopiscom>
 " Website: http://khopis.com/scripts
-" Version: 3.2
+" Version: 3.3+20110621
 " License: Your choice of Creative Commons Share-alike 2.0 or Apache License 2.0
-" Copyright: (c) 2009-10 by Adam Katz
+" Copyright: (c) 2009+ by Adam Katz
 
 " Save this file to ~/.vim/syntax/spamassassin.vim
 " and add the following to your ~/.vim/filetype.vim:
@@ -49,10 +49,10 @@ endif
 """""""""""""
 " Generic bits, largely inherited or tweaked from perl
 
-syn match saMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\s\zs\(\/\)\).*\1\2[cgimosx]*\%(\s\|$\)\@=" contains=saMatch,saComment contained
+syn match saMatchParent	"\%(\<[m!]\([[:punct:]]\)\|\s\zs\(\/\)\).*\1\2[cgimosx]*\%(\s\|$\)\@=" contains=saMatch,saComment contained nextgroup=saComment,saError skipwhite
 
 " caters for matching by grouping:  m{} and m[] (and the !/ variant)
-syn match saMatchParent	"\<[m!]\%([[{]\).*[]}][cgimosx]*\%(\s\|$\)\@=" contains=saMatch contained
+syn match saMatchParent	"\<[m!]\%([[{]\).*[]}][cgimosx]*\%(\s\|$\)\@=" contains=saMatch contained nextgroup=saComment,saError skipwhite
 syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]{+ end=+}[cgimosx]*\%(\s\|$\)+ contains=@perlInterpMatch oneline contained
 syn region saMatch	matchgroup=saMatchStartEnd start=+[m!]\[+ end=+\][cgimosx]*\%(\s\|$\)+ contains=@perlInterpMatch oneline contained
 
@@ -70,7 +70,8 @@ syn region  saQuote	start=+"+ end=+"+ skip=+\\"+ oneline contains=@Spell
 "syn region  saQuote	start=+"+ end=+"+ skip=+\\"+ oneline contains=@Spell,@saTemplateTags
 
 syn keyword saTodo	TODO TBD FIXME XXX BUG contained
-syn match   saComment	"#.*$" contains=saTodo,saURL,@Spell
+" safe because SA has the same bug; regexps must have their hashes escaped.
+syn match   saComment	"\%(\\\)\@<!#.*$" contains=saTodo,saURL,@Spell
 
 syn match saParens "[()]"
 syn match saNumber "[([:space:]]\@<=-\?\d\{1,90\}\>\%(\.\d\{1,90\}\)\?\>"
@@ -83,9 +84,9 @@ syn match saURL "\v\%(f|ht)tps?://[-A-Za-z0-9_.:@/#%,;~?+=&]{4,}" contains=@NoSp
 syn match saEmail "\v\c[a-z0-9._%+*-]+\@[a-z0-9.*-]+\.[a-z*]{2,4}%([^a-z*]|$)\@=" contains=saEmailGlob
 syn match saEmailGlob "\*" contained
 
-syn match saString "\S.*$" contains=saComment contained
-syn match saError "\S.*$" contains=saComment contained
-syn match saErrWord "\S\+" contains=saComment contained
+syn match saString	"\S.*$"	contains=saComment contained
+syn match saError	"\S.*$"	contains=saComment contained
+syn match saErrWord	"\S\+"	contains=saComment contained
 
 
 """""""""""""
@@ -215,7 +216,7 @@ syn keyword saDescribe describe contained nextgroup=saDescRule skipwhite
         syn match saDescribeOverflow2 ".\+$" contained contains=@Spell,saComment
 
 " body rules have regular expressions w/out a leading =~
-syn region saBodyMatch matchgroup=saMatchStartEnd start=:/: end=:/[cgimosx]*\%(\s\|$\): contains=@perlInterpSlash,saMatchParent oneline contained
+syn region saBodyMatch matchgroup=saMatchStartEnd start=:/: end=:/[cgimosx]*\%(\s\|$\): contains=@perlInterpSlash,saMatchParent oneline contained nextgroup=saComment,saError skipwhite
 
 syn keyword saType rawbody body full contained nextgroup=saBodyRule skipwhite
   syn match saBodyRule "\w\+\>" contained nextgroup=saEval,saMatchParent,saBodyMatch skipwhite
